@@ -1,6 +1,24 @@
-*.class
+*~
+.#*
+.git
+*#
 
-# Package Files #
-*.jar
-*.war
-*.ear
+# os x stuff
+*Thumbs.db*
+*.DS_Store
+
+build
+
+# Eclipse files
+.classpath
+.project
+.settings
+
+# Intellij IDEA files
+*.ipr
+*.iws
+*.iml
+*.idea
+
+# gradle
+.gradle
