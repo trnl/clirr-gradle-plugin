@@ -1,3 +1,5 @@
+import org.gradle.api.artifacts.maven.MavenDeployment
+
 /*
  * Copyright (c) 2008 - 2013 10gen, Inc. <http://10gen.com>
  *
@@ -18,14 +20,19 @@ apply plugin: 'idea'
 apply plugin: 'maven'
 apply plugin: 'signing'
 
-group = 'org.mongodb.gradle'
-version = '0.1-SNAPSHOT'
+group = 'me.trnl'
+version = '0.1'
 
 sourceCompatibility = '1.6'
 targetCompatibility = '1.6'
 
+repositories{
+    mavenCentral()
+}
+
 dependencies {
     compile gradleApi()
+    compile 'net.sf.clirr:clirr-core:0.6'
 }
 
 task sourcesJar(type: Jar) {
@@ -64,6 +71,7 @@ install {
 
 uploadArchives {
     project.mavenDeployers << repositories.mavenDeployer {
+        beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
         def sonatypeCredentials = [
                 userName: project.properties.sonatypeUsername,
                 password: project.properties.sonatypePassword
@@ -80,9 +88,19 @@ uploadArchives {
 
 pom {
     project {
+
+        name 'Clirr Gradle Plugin'
+        description =
+        '''
+        Clirr is a tool that checks Java libraries for binary and source compatibility with older releases.'
+        This plugin allows you to use Clirr from Gradle.
+        '''
+        url 'http://github.com/trnl/clirr-gradle-plugin'
         scm {
-            url 'http://github.com/trnl/clirr-gradle-plugin'
-            connection 'scm:git:git://github.com/trnl/clirr-gradle-plugin.git'
+            url 'git@github.com:trnl/clirr-gradle-plugin.git'
+            connection 'scm:git:git@github.com:trnl/clirr-gradle-plugin.git'
+            developerConnection 'scm:git:git@github.com:trnl/clirr-gradle-plugin.git'
+
         }
 
         licenses {
@@ -94,8 +112,9 @@ pom {
         }
         developers {
             developer {
-                name 'Various'
-                organization = '10gen'
+                id 'trnl'
+                name 'Uladzimir Mihura'
+                url = 'http://github.com/trnl'
             }
         }
     }
