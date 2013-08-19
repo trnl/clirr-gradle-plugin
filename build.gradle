@@ -21,7 +21,7 @@ apply plugin: 'maven'
 apply plugin: 'signing'
 
 group = 'me.trnl'
-version = '0.3'
+version = '0.4-SNAPSHOT'
 
 sourceCompatibility = '1.6'
 targetCompatibility = '1.6'
@@ -33,6 +33,7 @@ repositories{
 dependencies {
     compile gradleApi()
     compile 'net.sf.clirr:clirr-core:0.6'
+    compile 'org.yaml:snakeyaml:1.12'
 }
 
 task sourcesJar(type: Jar) {

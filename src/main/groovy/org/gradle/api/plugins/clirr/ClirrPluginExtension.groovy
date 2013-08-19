@@ -20,16 +20,6 @@ class ClirrPluginExtension {
 
     File reportsDir
     Object baseline
+    File excludeFilter
     Boolean ignoreFailures
-    Boolean ignoreDeprecated
-    List<Integer> ignoredDifferenceTypes = new ArrayList<Integer>()
-    List<String> ignoredPackages = new ArrayList<String>()
-
-    public void ignoredDifferenceTypes(final Integer... type) {
-        ignoredDifferenceTypes.addAll(type)
-    }
-
-    public void ignoredPackages(final String... pkg) {
-        ignoredPackages.addAll(pkg)
-    }
 }

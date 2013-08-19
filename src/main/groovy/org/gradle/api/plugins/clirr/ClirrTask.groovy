@@ -31,6 +31,7 @@ import org.gradle.api.plugins.clirr.reporters.HtmlReporter
 import org.gradle.api.plugins.clirr.reporters.Reporter
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.TaskAction
+import org.yaml.snakeyaml.Yaml
 
 import static net.sf.clirr.core.internal.ClassLoaderUtil.createClassLoader
 
@@ -54,18 +55,16 @@ class ClirrTask extends DefaultTask {
 
         final Checker checker = new Checker();
 
-        final ClassLoader origClassLoader = createClassLoader((oldClasspath as File[]) as String[]);
-        final ClassLoader newClassLoader = createClassLoader(((newClasspath + newFiles) as File[]) as String[])
-
         final JavaType[] origClasses = createClassSet(oldClasspath as File[]);
         final JavaType[] newClasses = createClassSet((newClasspath + newFiles) as File[])
 
+        def map = loadExcludeFilter(project.clirr.excludeFilter);
+
         final BufferedListener bufferedListener = new BufferedListener(
-                project.clirr.ignoredDifferenceTypes,
-                project.clirr.ignoredPackages,
-                project.clirr.ignoreDeprecated,
-                origClassLoader,
-                newClassLoader
+                map['differenceTypes'] ?: [],
+                map['packages'] ?: [],
+                map['classes'] ?: [],
+                map['members'] ?: [:]
         );
         checker.addDiffListener(bufferedListener)
 
@@ -92,6 +91,13 @@ class ClirrTask extends DefaultTask {
         }
 
 
+    }
+
+    private Map loadExcludeFilter(final File excludeFilter){
+        if (!excludeFilter) return [:];
+        def yaml = new Yaml()
+        def data = yaml.load(new FileInputStream(excludeFilter));
+        return data as Map
     }
 
     private JavaType[] createClassSet(final File[] files) {

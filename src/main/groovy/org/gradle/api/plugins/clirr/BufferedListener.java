@@ -3,11 +3,7 @@ package org.gradle.api.plugins.clirr;
 import net.sf.clirr.core.ApiDifference;
 import net.sf.clirr.core.DiffListenerAdapter;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,48 +15,22 @@ public class BufferedListener extends DiffListenerAdapter {
     public static final Pattern METHOD_PATTERN = Pattern.compile(
             "((public|private|protected|static|final|native|synchronized|abstract)\\s)*(.+\\s)?([\\$_\\w]+)\\((.*)\\)"
     );
-    private static final Map<String, Class<?>> primitiveClasses = new HashMap<String, Class<?>>();
-
-    static {
-        primitiveClasses.put("byte", byte.class);
-        primitiveClasses.put("short", short.class);
-        primitiveClasses.put("char", char.class);
-        primitiveClasses.put("int", int.class);
-        primitiveClasses.put("long", long.class);
-        primitiveClasses.put("float", float.class);
-        primitiveClasses.put("boolean", boolean.class);
-        primitiveClasses.put("double", double.class);
-        primitiveClasses.put("byte[]", byte[].class);
-        primitiveClasses.put("short[]", short[].class);
-        primitiveClasses.put("char[]", char[].class);
-        primitiveClasses.put("int[]", int[].class);
-        primitiveClasses.put("long[]", long[].class);
-        primitiveClasses.put("float[]", float[].class);
-        primitiveClasses.put("double[]", double[].class);
-        primitiveClasses.put("boolean[]", boolean[].class);
-        // Use the wrapper variant if necessary, like Integer.class,
-        // so that you can instantiate it.
-    }
 
     private final Map<String, List<ApiDifference>> differences;
     private final List<Integer> ignoredDifferenceTypes;
-    private final Boolean ignoreDeprecated;
     private final List<String> ignoredPackages;
-    private final ClassLoader origClassLoader;
-    private final ClassLoader newClassLoader;
-
+    private final List<String> ignoredClasses;
+    private final Map<String, List<String>> ignoredMembers;
 
     public BufferedListener(final List<Integer> ignoredDifferenceTypes,
                             final List<String> ignoredPackages,
-                            final Boolean ignoreDeprecated,
-                            final ClassLoader origClassLoader,
-                            final ClassLoader newClassLoader) {
+                            final List<String> ignoredClasses,
+                            final Map<String, List<String>> ignoredMembers) {
         this.ignoredDifferenceTypes = ignoredDifferenceTypes;
         this.ignoredPackages = ignoredPackages;
-        this.ignoreDeprecated = ignoreDeprecated;
+        this.ignoredClasses = ignoredClasses;
+        this.ignoredMembers = ignoredMembers;
         this.differences = new HashMap<String, List<ApiDifference>>();
-        this.origClassLoader = origClassLoader;
-        this.newClassLoader = newClassLoader;
     }
 
 
@@ -70,73 +40,55 @@ public class BufferedListener extends DiffListenerAdapter {
             return;
         }
 
-        if (ignoreDeprecated && checkForDeprecations(difference)) {
+        final String className = difference.getAffectedClass();
+        final String packageName = className.substring(0, className.lastIndexOf('.'));
+
+        if (ignoredPackages.contains(packageName) || ignoredClasses.contains(className)) {
             return;
         }
 
-        final String affectedClass = difference.getAffectedClass();
+        final String memberName = extractMemberName(difference);
 
-        for (String pkg : ignoredPackages) {
-            if (affectedClass.startsWith(pkg)) {
-                return;
-            }
+        if (memberName != null
+                && ignoredMembers.containsKey(className)
+                && ignoredMembers.get(className).contains(memberName)) {
+            return;
         }
 
-
-        if (!differences.containsKey(affectedClass)) {
-            differences.put(affectedClass, new ArrayList<ApiDifference>());
+        if (!differences.containsKey(className)) {
+            differences.put(className, new ArrayList<ApiDifference>());
         }
-        differences.get(affectedClass).add(difference);
+        differences.get(className).add(difference);
+    }
+
+    private static String extractSimpleName(final String className) {
+        return className.substring(className.lastIndexOf('.') + 1);
     }
 
     @SuppressWarnings("unchecked")
-    private boolean checkForDeprecations(final ApiDifference difference) {
-        try {
-            final Class<?> cls = origClassLoader.loadClass(difference.getAffectedClass());
-            if (cls.getAnnotation(Deprecated.class) != null) {
-                return true;
-            }
-
-
-            if (difference.getAffectedMethod() != null) {
-                final Matcher matcher = METHOD_PATTERN.matcher(difference.getAffectedMethod());
-                if (matcher.matches()) {
-                    final String stripped = matcher.group(5).replaceAll("\\s+", "");
-                    final String[] types = stripped.isEmpty() ? new String[0] : stripped.split(",");
-                    final Class<?>[] parameters = new Class[types.length];
-                    for (int i = 0; i < types.length; i++) {
-                        if (primitiveClasses.containsKey(types[i])) {
-                            parameters[i] = primitiveClasses.get(types[i]);
-                        } else {
-                            parameters[i] = origClassLoader.loadClass(types[i]);
-                        }
-                    }
-                    if (matcher.group(3) != null) {
-                        final Method method = cls.getDeclaredMethod(matcher.group(4), parameters);
-                        if (method.getAnnotation(Deprecated.class) != null) {
-                            return true;
-                        }
-                    } else {
-                        final Constructor constructor = cls.getDeclaredConstructor(parameters);
-                        if (constructor.getAnnotation(Deprecated.class) != null) {
-                            return true;
-                        }
-                    }
+    private static String extractMemberName(final ApiDifference difference) {
+        if (difference.getAffectedMethod() != null) {
+            final StringBuilder sb = new StringBuilder();
+            final Matcher matcher = METHOD_PATTERN.matcher(difference.getAffectedMethod());
+            if (matcher.matches()) {
+                final String stripped = matcher.group(5).replaceAll("\\s+", "");
+                if (matcher.group(3) != null) {
+                    sb.append(matcher.group(4));
+                } else {
+                    sb.append(extractSimpleName(difference.getAffectedClass()));
                 }
+                sb.append("(").append(stripped).append(")");
+                return sb.toString();
+            } else {
+                return null;
             }
-
-            if (difference.getAffectedField() != null) {
-                final Field field = cls.getDeclaredField(difference.getAffectedField());
-                if (field.getAnnotation(Deprecated.class) != null) {
-                    return true;
-                }
-            }
-
-        } catch (Exception e) {
-            //no-op
+        } else if (difference.getAffectedField() != null) {
+            return difference.getAffectedField();
+        } else {
+            return null;
         }
-        return false;
     }
+
 
     public Map<String, List<ApiDifference>> getDifferences() {
         return differences;
