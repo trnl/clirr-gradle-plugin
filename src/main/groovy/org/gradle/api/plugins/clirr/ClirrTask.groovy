@@ -54,17 +54,26 @@ class ClirrTask extends DefaultTask {
 
         final Checker checker = new Checker();
 
+        final ClassLoader origClassLoader = createClassLoader((oldClasspath as File[]) as String[]);
+        final ClassLoader newClassLoader = createClassLoader(((newClasspath + newFiles) as File[]) as String[])
+
+        final JavaType[] origClasses = createClassSet(oldClasspath as File[]);
+        final JavaType[] newClasses = createClassSet((newClasspath + newFiles) as File[])
+
         final BufferedListener bufferedListener = new BufferedListener(
                 project.clirr.ignoredDifferenceTypes,
-                project.clirr.ignoredPackages
+                project.clirr.ignoredPackages,
+                project.clirr.ignoreDeprecated,
+                origClassLoader,
+                newClassLoader
         );
         checker.addDiffListener(bufferedListener)
 
         checker.addDiffListener(new XmlDiffListener("${project.clirr.reportsDir}/${REPORT_NAME}.xml"))
 
+
+
         try {
-            final JavaType[] origClasses = createClassSet(oldClasspath as File[]);
-            final JavaType[] newClasses = createClassSet((newClasspath + newFiles) as File[])
 
             checker.reportDiffs(origClasses, newClasses);
         } catch (CheckerException ex) {

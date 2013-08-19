@@ -57,6 +57,7 @@ class ClirrPlugin implements Plugin<Project> {
             reportsDir = project.extensions.getByType(ReportingExtension).file('clirr')
             baseline = "$project.group:$project.archivesBaseName:+".toString()
             ignoreFailures = false
+            ignoreDeprecated = false
             return (ClirrPluginExtension) delegate
         }
     }

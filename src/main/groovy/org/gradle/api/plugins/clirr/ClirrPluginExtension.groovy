@@ -21,6 +21,7 @@ class ClirrPluginExtension {
     File reportsDir
     Object baseline
     Boolean ignoreFailures
+    Boolean ignoreDeprecated
     List<Integer> ignoredDifferenceTypes = new ArrayList<Integer>()
     List<String> ignoredPackages = new ArrayList<String>()
 
